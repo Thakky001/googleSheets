@@ -241,6 +241,9 @@ HTML_TEMPLATE = """
 </body>
 </html>
 """
+@app.route('/ping')
+def ping():
+    return "OK", 200
 
 @app.route('/')
 def home():
