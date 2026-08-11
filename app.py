@@ -171,7 +171,11 @@ HTML_TEMPLATE = """
                                                 {% for col, val in row.items() %}
                                                 {% set is_money = ('PnL' in col or 'Net' in col) and val|string != '' and val != '-' %}
                                                 {% set num = val|string|replace('$','')|replace('%','')|float if is_money else 0 %}
+                                                {% if '(%)' in col and val|string != '' and val != '-' %}
+                                                <td class="px-4 py-3 whitespace-nowrap {{ 'money-pos' if is_money and num >= 0 else ('money-neg' if is_money and num < 0 else '') }}">{{ "%.2f%%"|format(num * 100) }}</td>
+                                                {% else %}
                                                 <td class="px-4 py-3 whitespace-nowrap {{ 'money-pos' if is_money and num >= 0 else ('money-neg' if is_money and num < 0 else '') }}">{{ val }}</td>
+                                                {% endif %}
                                                 {% endfor %}
                                             </tr>
                                             {% endfor %}
@@ -207,6 +211,7 @@ HTML_TEMPLATE = """
                                         {% set num = val|string|replace('$','')|replace('%','')|float if is_money else 0 %}
                                         {% if val == 'BUY' %}<td class="px-4 py-3"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[9px] font-bold">{{ val }}</span></td>
                                         {% elif val == 'SELL' %}<td class="px-4 py-3"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-bold">{{ val }}</span></td>
+                                        {% elif '(%)' in col and val|string != '' and val != '-' %}<td class="px-4 py-3 whitespace-nowrap {{ 'money-pos' if is_money and num >= 0 else ('money-neg' if is_money and num < 0 else '') }}">{{ "%.2f%%"|format(num * 100) }}</td>
                                         {% else %}<td class="px-4 py-3 whitespace-nowrap {{ 'money-pos' if is_money and num >= 0 else ('money-neg' if is_money and num < 0 else '') }}">{{ val }}</td>
                                         {% endif %}
                                         {% endfor %}
@@ -252,4 +257,4 @@ def home():
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port, debug=True)
