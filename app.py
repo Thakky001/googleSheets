@@ -52,7 +52,13 @@ def fetch_all_data():
 
         # 3. จัดกลุ่มพอร์ตลงทุน (ตาม User)
         if 'User' in df_portfolio.columns:
-            cols = ['Month', 'User', 'Total Invested ($)', 'Open Positions', 'Unrealized PnL ($)', 'Net PnL ($)']
+            df_portfolio['Unrealized PnL (%)'] = 0.0
+            invested = pd.to_numeric(df_portfolio['Total Invested ($)'], errors='coerce').fillna(0)
+            unrealized = pd.to_numeric(df_portfolio['Unrealized PnL ($)'], errors='coerce').fillna(0)
+            mask = invested != 0
+            df_portfolio.loc[mask, 'Unrealized PnL (%)'] = unrealized[mask] / invested[mask]
+            
+            cols = ['Month', 'User', 'Total Invested ($)', 'Open Positions', 'Unrealized PnL ($)', 'Unrealized PnL (%)']
             df_p = df_portfolio[[c for c in cols if c in df_portfolio.columns]]
             for u, g in df_p.groupby('User', sort=False):
                 data["portfolio_grouped"][u or 'N/A'] = g.drop(columns=['User']).to_dict(orient='records')
@@ -170,9 +176,13 @@ HTML_TEMPLATE = """
                                             <tr class="hover:bg-blue-50/50 transition">
                                                 {% for col, val in row.items() %}
                                                 {% set is_money = ('PnL' in col or 'Net' in col) and val|string != '' and val != '-' %}
-                                                {% set num = val|string|replace('$','')|replace('%','')|float if is_money else 0 %}
+                                                {% set is_numeric = ('($)' in col or '(%)' in col or is_money) and val|string != '' and val != '-' %}
+                                                {% set num = val|string|replace(',','')|replace('$','')|replace('%','')|float if is_numeric else 0 %}
                                                 {% if '(%)' in col and val|string != '' and val != '-' %}
-                                                <td class="px-4 py-3 whitespace-nowrap {{ 'money-pos' if is_money and num >= 0 else ('money-neg' if is_money and num < 0 else '') }}">{{ "%.2f%%"|format(num * 100) }}</td>
+                                                <td class="px-4 py-3 whitespace-nowrap {{ 'money-pos' if is_money and num >= 0 else ('money-neg' if is_money and num < 0 else '') }}">{{ "%+.2f%%"|format(num * 100) if is_money else "%.2f%%"|format(num * 100) }}</td>
+                                                {% elif '($)' in col and val|string != '' and val != '-' %}
+                                                {% if is_money %}<td class="px-4 py-3 whitespace-nowrap {{ 'money-pos' if num > 0 else ('money-neg' if num < 0 else '') }}">{{ "+${:,.2f}".format(num) if num > 0 else ("-${:,.2f}".format(num * -1) if num < 0 else "$0.00") }}</td>
+                                                {% else %}<td class="px-4 py-3 whitespace-nowrap">{{ "${:,.2f}".format(num) if num >= 0 else "-${:,.2f}".format(num * -1) }}</td>{% endif %}
                                                 {% else %}
                                                 <td class="px-4 py-3 whitespace-nowrap {{ 'money-pos' if is_money and num >= 0 else ('money-neg' if is_money and num < 0 else '') }}">{{ val }}</td>
                                                 {% endif %}
@@ -208,10 +218,14 @@ HTML_TEMPLATE = """
                                     <tr class="hover:bg-slate-50 transition">
                                         {% for col, val in row.items() %}
                                         {% set is_money = ('PnL' in col or 'Net' in col) and val|string != '' and val != '-' %}
-                                        {% set num = val|string|replace('$','')|replace('%','')|float if is_money else 0 %}
+                                        {% set is_numeric = ('($)' in col or '(%)' in col or is_money) and val|string != '' and val != '-' %}
+                                        {% set num = val|string|replace(',','')|replace('$','')|replace('%','')|float if is_numeric else 0 %}
                                         {% if val == 'BUY' %}<td class="px-4 py-3"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-[9px] font-bold">{{ val }}</span></td>
                                         {% elif val == 'SELL' %}<td class="px-4 py-3"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-[9px] font-bold">{{ val }}</span></td>
-                                        {% elif '(%)' in col and val|string != '' and val != '-' %}<td class="px-4 py-3 whitespace-nowrap {{ 'money-pos' if is_money and num >= 0 else ('money-neg' if is_money and num < 0 else '') }}">{{ "%.2f%%"|format(num * 100) }}</td>
+                                        {% elif '(%)' in col and val|string != '' and val != '-' %}<td class="px-4 py-3 whitespace-nowrap {{ 'money-pos' if is_money and num >= 0 else ('money-neg' if is_money and num < 0 else '') }}">{{ "%+.2f%%"|format(num * 100) if is_money else "%.2f%%"|format(num * 100) }}</td>
+                                        {% elif '($)' in col and val|string != '' and val != '-' %}
+                                        {% if is_money %}<td class="px-4 py-3 whitespace-nowrap {{ 'money-pos' if num > 0 else ('money-neg' if num < 0 else '') }}">{{ "+${:,.2f}".format(num) if num > 0 else ("-${:,.2f}".format(num * -1) if num < 0 else "$0.00") }}</td>
+                                        {% else %}<td class="px-4 py-3 whitespace-nowrap">{{ "${:,.2f}".format(num) if num >= 0 else "-${:,.2f}".format(num * -1) }}</td>{% endif %}
                                         {% else %}<td class="px-4 py-3 whitespace-nowrap {{ 'money-pos' if is_money and num >= 0 else ('money-neg' if is_money and num < 0 else '') }}">{{ val }}</td>
                                         {% endif %}
                                         {% endfor %}
